@@ -1,0 +1,96 @@
+  - name: Required packages for Nagios
+    tags: libs
+    apt:
+      name:
+        - python3-pip
+        - python3
+        - php
+        - openssl
+        - apache2
+        - autoconf
+        - gcc
+        - libc6
+        - wget
+        - unzip
+        - make
+        - libgd-dev
+        - gawk
+        - build-essential
+        - libapache2-mod-php
+        - gettext
+        - bc
+        - dc
+        - snmp
+        - libnet-snmp-perl
+        - libssl-dev
+        - libmcrypt-dev
+      state: latest
+      update_cache: true
+
+  - name: passlib package installation
+    pip:
+      name: passlib
+
+  - name: Download repository
+    file:
+      path: ~/nagios
+      state: directory
+
+  - name: Nagios installation from a source
+    unarchive:
+      src: https://github.com/NagiosEnterprises/nagioscore/archive/nagios-4.4.6.tar.gz
+      dest: ~/nagios
+      remote_src: yes
+      mode: 0755
+      owner: root
+      group: root
+
+  - name: Nagios Users and Group Creation
+    shell: |
+      cd ~/nagios/nagioscore-*
+      sudo ./configure --with-httpd-conf=/etc/apache2/sites-enabled
+      sudo make all
+      sudo make install-groups-users
+      sudo usermod -a -G nagios www-data
+      sudo make install
+      sudo make install-daemoninit
+      sudo make install-commandmode
+      sudo make install-config
+      sudo make install-webconf
+      sudo a2enmod rewrite
+      sudo a2enmod cgi
+
+  - name: Nagios plugins download
+    unarchive:
+      src: https://github.com/nagios-plugins/nagios-plugins/archive/release-2.3.3.tar.gz
+      dest: ~/nagios
+      remote_src: yes
+      mode: 0755
+      owner: root
+      group: root
+
+  - name: Nagios plugins installation
+    shell: |
+      cd ~/nagios/nagios-plugins*
+      ./tools/setup
+      ./configure
+      make
+      make install
+
+  - name: User authentication
+    community.general.htpasswd:
+      path: /usr/local/nagios/etc/htpasswd.users
+      name: keith
+      password: kdm24!
+
+  - name: Nagios Start
+    service:
+      name: nagios
+      state: restarted
+      enabled: true
+
+  - name: httpd Service Start
+    service:
+      name: apache2
+      state: restarted
+      enabled: true
